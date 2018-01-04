@@ -1,0 +1,106 @@
+apply plugin: 'com.android.library'
+
+android {
+    compileSdkVersion 26
+
+    defaultConfig {
+        minSdkVersion 15
+        targetSdkVersion 26
+        versionCode 1
+        versionName "1.0"
+
+        testInstrumentationRunner "android.support.test.runner.AndroidJUnitRunner"
+
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
+        }
+    }
+
+
+
+    lintOptions {
+        abortOnError false
+        checkReleaseBuilds false
+    }
+
+}
+
+dependencies {
+    implementation fileTree(dir: 'libs', include: ['*.jar'])
+
+    implementation 'com.android.support:appcompat-v7:26.1.0'
+    implementation 'com.android.support:design:26.1.0'
+    testImplementation 'junit:junit:4.12'
+    androidTestImplementation 'com.android.support.test:runner:1.0.1'
+    androidTestImplementation 'com.android.support.test.espresso:espresso-core:3.0.1'
+}
+
+
+
+task makeUtilJar(type: Jar) {
+    from file('build/intermediates/classes/release')
+    from fileTree(dir: 'src/main', includes: ['assets/**'])
+    def name = 'andutil-V' + android.defaultConfig.versionName + '.jar'
+    delete 'build/outputs/' + name
+    //目标文件名称
+    archiveName = name
+    destinationDir = file('build/outputs')
+    //移除文件
+    exclude "com/we/scp/andutil/BuildConfig.class"
+    exclude "com/we/scp/andutil/BuildConfig\$*.class"
+    exclude "**/R.class"
+    exclude "**/R\$*.class"
+    //只导入资源路径集下的部分资源
+    include "com/we/scp/andutil/**.class"
+    include "com/we/scp/andutil/**/**.class"
+    include "assets/**"
+}
+
+task proguardUtilJar(type: proguard.gradle.ProGuardTask, dependsOn: makeUtilJar) {
+    def name = 'andutil-V' + android.defaultConfig.versionName + '.jar'
+    def outFile = 'build/outputs/andutil-pro-V' + android.defaultConfig.versionName + '.jar'
+    def inFile = 'build/outputs/' + name
+    delete outFile
+    // 未混淆的jar
+    injars inFile
+    // 混淆后的jar路径
+    outjars outFile
+    // 具体需要keep住的类
+    configuration 'proguard-rules.pro'
+    delete inFile
+}
+
+tasks.withType(JavaCompile) {
+    options.encoding = "UTF-8"
+    options.compilerArgs << "-Xlint:unchecked"
+}
+
+task utilJavaDoc(type: Javadoc) {
+    title = 'andutil-V' + android.defaultConfig.versionName + 'API'
+    source = android.sourceSets.main.java.srcDirs
+    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
+    ext.androidJar = "${android.sdkDirectory}/platforms/${android.compileSdkVersion}/android.jar"
+    exclude '**/BuildConfig.java'
+    exclude '**/R.java'
+    include "com/we/scp/andutil/**.java"
+    include "com/we/scp/andutil/**/**.java"
+}
+
+utilJavaDoc {
+    options {
+        encoding "UTF-8"
+        charSet 'UTF-8'
+        author true
+        version true
+        links "http://docs.oracle.com/javase/7/docs/api"
+    }
+}
+
+
+proguardUtilJar.dependsOn(makeUtilJar, build)
+makeUtilJar.dependsOn(build)
+utilJavaDoc.dependsOn(build)
